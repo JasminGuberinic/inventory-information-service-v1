@@ -1,0 +1,1 @@
+# inventory-information-service-v1
