@@ -23,3 +23,30 @@ docker images  # Trebalo bi da bude prazno ako su svi imidži uklonjeni
 docker volume ls  # Trebalo bi da bude prazno ako su svi volumeni uklonjeni
 
 docker-compose up --build
+
+# Konektuj se na Redis container
+docker exec -it redis redis-cli
+
+# Osnovne komande za pregled:
+KEYS *                  # Prikaži sve ključeve
+GET "inventory:1:TEST_WH"   # Dohvati vrijednost za specifični ključ
+
+
+redis-commander:
+    image: rediscommander/redis-commander:latest
+    container_name: redis-commander
+    environment:
+      - REDIS_HOSTS=local:redis:6379
+    ports:
+      - "8081:8081"
+    networks:
+      - local-kafka
+
+
+Ključne karakteristike:
+
+Redis kao brzi cache
+PostgreSQL kao trajno skladište
+Cache-aside pattern za čitanje
+Write-through pattern za pisanje
+Automatsko punjenje cache-a kad podatak nije nađen

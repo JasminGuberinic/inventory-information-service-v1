@@ -2,7 +2,9 @@ package com.starter.inventory_information.domain.service
 
 import com.starter.inventory_information.domain.model.InventoryItem
 import com.starter.inventory_information.domain.model.Weight
+import org.springframework.stereotype.Service
 
+@Service
 class ShippingOptimizationService {
 
     /**

@@ -50,3 +50,11 @@ services:
       - KAFKA_CLUSTERS_0_NAME=broker
       - KAFKA_CLUSTERS_0_BOOTSTRAPSERVERS=broker:9093
       - KAFKA_CLUSTERS_0_ZOOKEEPER=zookeeper:2181
+
+  redis:
+    image: redis:7.0
+    container_name: redis
+    ports:
+      - "6379:6379"
+    networks:
+      - local-kafka

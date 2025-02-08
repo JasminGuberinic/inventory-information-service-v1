@@ -1,0 +1,126 @@
+package com.starter.inventory_information.domain.service
+
+@Service
+class InventoryTrackingService(
+    private val inventoryRepository: InventoryRepositoryPort,
+    private val redisTemplate: RedisTemplate<String, InventoryLevel>,
+    private val kafkaTemplate: KafkaTemplate<String, InventoryTransaction>,
+    private val transactionRepository: InventoryTransactionRepository
+) {
+
+    fun updateStock(
+        itemId: Long,
+        quantity: Int,
+        type: TransactionType,
+        reason: String,
+        locationCode: String
+    ): InventoryLevel {
+        val currentLevel = getCurrentLevel(itemId, locationCode)
+
+        val newQuantity = when (type) {
+            TransactionType.STOCK_ADDITION -> currentLevel.availableQuantity + quantity
+            TransactionType.STOCK_REMOVAL -> {
+                if (currentLevel.availableQuantity < quantity) {
+                    throw InsufficientStockException("Not enough stock available")
+                }
+                currentLevel.availableQuantity - quantity
+            }
+            TransactionType.STOCK_ADJUSTMENT -> quantity
+            else -> throw IllegalArgumentException("Invalid transaction type for stock update")
+        }
+
+        val transaction = InventoryTransaction(
+            itemId = itemId,
+            type = type,
+            quantity = quantity,
+            reason = reason,
+            previousQuantity = currentLevel.availableQuantity,
+            newQuantity = newQuantity,
+            locationCode = locationCode
+        )
+
+        val updatedLevel = currentLevel.copy(
+            availableQuantity = newQuantity,
+            lastUpdated = LocalDateTime.now()
+        )
+
+        // Update cache
+        redisTemplate.opsForValue().set(getCacheKey(itemId, locationCode), updatedLevel)
+
+        // Persist transaction
+        transactionRepository.save(transaction)
+
+        // Publish event
+        kafkaTemplate.send("inventory-transactions", transaction)
+
+        return updatedLevel
+    }
+
+    fun reserveStock(
+        itemId: Long,
+        quantity: Int,
+        locationCode: String
+    ): InventoryLevel {
+        val currentLevel = getCurrentLevel(itemId, locationCode)
+
+        if (currentLevel.availableQuantity < quantity) {
+            throw InsufficientStockException("Not enough stock available for reservation")
+        }
+
+        val updatedLevel = currentLevel.copy(
+            availableQuantity = currentLevel.availableQuantity - quantity,
+            reservedQuantity = currentLevel.reservedQuantity + quantity,
+            lastUpdated = LocalDateTime.now()
+        )
+
+        val transaction = InventoryTransaction(
+            itemId = itemId,
+            type = TransactionType.RESERVATION,
+            quantity = quantity,
+            reason = "Stock reservation",
+            previousQuantity = currentLevel.availableQuantity,
+            newQuantity = updatedLevel.availableQuantity,
+            locationCode = locationCode
+        )
+
+        redisTemplate.opsForValue().set(getCacheKey(itemId, locationCode), updatedLevel)
+        transactionRepository.save(transaction)
+        kafkaTemplate.send("inventory-transactions", transaction)
+
+        return updatedLevel
+    }
+
+    fun getInventoryHistory(
+        itemId: Long,
+        fromDate: LocalDateTime,
+        toDate: LocalDateTime
+    ): List<InventoryTransaction> {
+        return transactionRepository.findByItemIdAndTimestampBetween(itemId, fromDate, toDate)
+    }
+
+    private fun getCurrentLevel(itemId: Long, locationCode: String): InventoryLevel {
+        return redisTemplate.opsForValue().get(getCacheKey(itemId, locationCode))
+            ?: synchronized(this) {
+                redisTemplate.opsForValue().get(getCacheKey(itemId, locationCode))
+                    ?: initializeInventoryLevel(itemId, locationCode)
+            }
+    }
+
+    private fun initializeInventoryLevel(itemId: Long, locationCode: String): InventoryLevel {
+        val item = inventoryRepository.findById(itemId)
+            .orElseThrow { NoSuchElementException("Item not found") }
+
+        val level = InventoryLevel(
+            itemId = itemId,
+            availableQuantity = item.quantity,
+            reservedQuantity = 0,
+            lastUpdated = LocalDateTime.now(),
+            locationCode = locationCode
+        )
+
+        redisTemplate.opsForValue().set(getCacheKey(itemId, locationCode), level)
+        return level
+    }
+
+    private fun getCacheKey(itemId: Long, locationCode: String) = "inventory:$itemId:$locationCode"
+}

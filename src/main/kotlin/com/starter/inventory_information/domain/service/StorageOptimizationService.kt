@@ -1,6 +1,8 @@
 import com.starter.inventory_information.domain.model.InventoryItem
+import org.springframework.stereotype.Service
 import kotlin.math.ceil
 
+@Service
 class StorageOptimizationService {
 
     /**

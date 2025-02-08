@@ -17,6 +17,9 @@
         <sqlFile path="src/main/resources/db/changelog/changes/03-modify-columns-to-nullable.sql"/>
     </changeSet>
 
+    <changeSet id="4" author="jasmin">
+        <sqlFile path="src/main/resources/db/changelog/changes/04-create-inventory_levels-table.sql"/>
+    </changeSet>
 
     <!-- ./mvnw liquibase:update mvn liquibase:update -->
 

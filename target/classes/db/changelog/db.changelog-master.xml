@@ -13,6 +13,10 @@
         <sqlFile path="src/main/resources/db/changelog/changes/02-add-dimensions-weight-packaging-to-inventory_item.sql"/>
     </changeSet>
 
+    <changeSet id="3" author="jasmin">
+        <sqlFile path="src/main/resources/db/changelog/changes/03-modify-columns-to-nullable.sql"/>
+    </changeSet>
+
 
     <!-- ./mvnw liquibase:update mvn liquibase:update -->
 
