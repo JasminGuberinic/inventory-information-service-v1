@@ -1,5 +1,3 @@
-# inventory-information-service-v1
-
 # Inventory Information Service
 
 > Enterprise-grade inventory management system built with Kotlin and Spring Boot, implementing Clean Architecture and Domain-Driven Design principles.
